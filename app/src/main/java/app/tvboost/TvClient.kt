@@ -138,8 +138,15 @@ class TvClient(private val keyDir: File) {
     }
 
     /** Устанавливает APK (например, лаунчер) на ТВ. */
-    suspend fun installApk(file: File): Unit = withContext(Dispatchers.IO) {
-        dd().install(file)
+       suspend fun installApk(file: File): Unit = withContext(Dispatchers.IO) {
+        val d = dd()
+        val remote = "/data/local/tmp/tvboost_install.apk"
+        d.push(file, remote)
+        val r = d.shell("pm install -r $remote")
+        d.shell("rm $remote")
+        if (!r.allOutput.contains("Success")) {
+            error("Не удалось установить: ${r.allOutput.trim()}")
+        }
     }
 
     /** Пытается назначить лаунчер домашним. Возвращает вывод команды. */
