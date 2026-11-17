@@ -137,6 +137,20 @@ class TvClient(private val keyDir: File) {
         d.shell("settings put global animator_duration_scale 1.0")
     }
 
+    /** Устанавливает APK (например, лаунчер) на ТВ. */
+    suspend fun installApk(file: File): Unit = withContext(Dispatchers.IO) {
+        dd().install(file)
+    }
+
+    /** Пытается назначить лаунчер домашним. Возвращает вывод команды. */
+    suspend fun setHome(component: String): String = withContext(Dispatchers.IO) {
+        dd().shell("cmd package set-home-activity $component").allOutput.trim()
+    }
+
+    suspend fun openHome(): Unit = withContext(Dispatchers.IO) {
+        dd().shell("input keyevent KEYCODE_HOME")
+    }
+
     fun close() {
         runCatching { dadb?.close() }
         dadb = null

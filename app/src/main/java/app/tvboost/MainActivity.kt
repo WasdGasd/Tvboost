@@ -2,7 +2,9 @@ package app.tvboost
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -63,6 +65,16 @@ fun TvBoostApp(dir: File) {
 
     suspend fun refresh() { apps = client.enabledPackages() }
 
+    val pickApk = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) run {
+            val f = File(ctx.cacheDir, "launcher.apk")
+            ctx.contentResolver.openInputStream(uri)!!.use { i -> f.outputStream().use { o -> i.copyTo(o) } }
+            msg = "Устанавливаю на ТВ…"
+            client.installApk(f)
+            "APK установлен на ТВ. Теперь нажмите «Сделать домашним»."
+        }
+    }
+
     if (tvName == null) {
         // ---------- Экран подключения ----------
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -101,7 +113,7 @@ fun TvBoostApp(dir: File) {
     ) { pad ->
         Column(Modifier.padding(pad)) {
             TabRow(selectedTabIndex = tab) {
-                listOf("Приложения", "Ускорение", "Вернуть").forEachIndexed { i, t ->
+                listOf("Приложения", "Ускорение", "Вернуть", "Лаунчер").forEachIndexed { i, t ->
                     Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) })
                 }
             }
@@ -155,6 +167,23 @@ fun TvBoostApp(dir: File) {
                     OutlinedButton(enabled = !busy, onClick = {
                         run { client.resetAnimations(); "Анимации возвращены к стандартным" }
                     }, modifier = Modifier.fillMaxWidth()) { Text("Вернуть анимации") }
+                }
+
+                3 -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Лёгкий лаунчер вместо тяжёлого домашнего экрана: YouTube, Кинопоиск, Яндекс и другие видеоприложения идут первыми. Стандартный лаунчер не отключается.")
+                    Text("1. Скачайте launcher-debug.apk из сборки GitHub на телефон.\n2. Нажмите «Выбрать APK» и укажите этот файл.\n3. Нажмите «Сделать домашним».")
+                    Button(enabled = !busy, onClick = { pickApk.launch("application/vnd.android.package-archive") }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Выбрать APK лаунчера и установить")
+                    }
+                    Button(enabled = !busy, onClick = {
+                        run {
+                            val out = client.setHome("app.tvboost.launcher/.HomeActivity")
+                            client.openHome()
+                            if (out.isBlank() || out.contains("success", true) || out.contains("Setting", true)) "Готово. Нажмите «Домой» на пульте."
+                            else "Автоматически не вышло ($out). Нажмите «Домой» на пульте и выберите «Лаунчер» → «Всегда»."
+                        }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Сделать домашним") }
+                    Text("Если что-то не так: Настройки ТВ → Приложения → Лаунчер → удалить, и домашним снова станет стандартный экран.", style = MaterialTheme.typography.bodySmall)
                 }
 
                 2 -> Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {

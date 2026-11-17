@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "TvBoost"
 include(":app")
+include(":launcher")
